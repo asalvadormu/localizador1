@@ -17,8 +17,9 @@ public class MainActivity extends ActionBarActivity {
 
     private ServicioLocalizador elservicio;
     private boolean enlazado=false;
-
     private boolean locActiva=true;
+
+    private Intent intentServicio;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,8 +29,8 @@ public class MainActivity extends ActionBarActivity {
         Log.i("ACTIVIDAD", "arracando");
 
         //arrancar servicio que comprueba si estamos fuera de zona segura
-        Intent intent = new Intent(this, ServicioLocalizador.class);
-        startService(intent);
+        intentServicio = new Intent(this, ServicioLocalizador.class);
+       // startService(intent);
 
         enlazar();
 
@@ -59,13 +60,11 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+   /*******************    METODOS PARA ENLAZADO CON EL SERVICIO   **************************/
     private ServiceConnection conexion=new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             elservicio=((ServicioLocalizador.LocalBinder)service).getService();
-
-
-
         }
 
         @Override
@@ -92,20 +91,39 @@ public class MainActivity extends ActionBarActivity {
     }
 
     public void onclick(View v){
-        Log.i("LOCALIZACION1","SERVICIO click boton locActiva: "+locActiva);
-
-
-        if(elservicio!=null) {
-            if (locActiva) {
-                locActiva = false;
-                elservicio.stopLocationUpdates();
-            } else {
-                locActiva = true;
-                elservicio.startLocationUpdates();
-            }
+        int cual=  v.getId();
+        switch(cual){
+            case R.id.button0:
+                Log.i("LOCALIZACION1","SERVICIO click boton0 ");
+                //conectar localizador
+                if(elservicio!=null) {
+                    if(!locActiva) {
+                        elservicio.startLocationUpdates();
+                        locActiva=true;
+                    }
+                }
+                break;
+            case R.id.button1:
+                Log.i("LOCALIZACION1","SERVICIO click boton1 ");
+                //iniciar servicio
+                startService(intentServicio);
+                break;
+            case R.id.button2:
+                Log.i("LOCALIZACION1","SERVICIO click boton2 ");
+                //parar servicio
+                boolean que=stopService(intentServicio);
+                Log.i("LOCALIZACION1","SERVICIO servicio parado? "+que);
+                break;
+            case R.id.button3: Log.i("LOCALIZACION1","SERVICIO click boton3 ");
+                //desconectar localizador
+                if(elservicio!=null) {
+                    if(locActiva) {
+                        elservicio.stopLocationUpdates();
+                        locActiva=false;
+                    }
+                }
+                break;
         }
-
-
     }
 
 }

@@ -28,11 +28,15 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
 
     GoogleApiClient cliente;
     LocationRequest locationRequest;
-    private boolean localizadorActivo=true;
+
+    private boolean cliente_conectado=false;
+    private boolean localizador_activado=true;
 
     Location zonasegura;
-    private double latitud=  37.930801;
-    private double longitud= -4.675326;
+    //37.898339, -4.722734 magtel poligono
+    //37.930801 -4.675326 alcolea
+    private double latitud= 37.898339 ;
+    private double longitud=-4.722734 ;
 
     private boolean SMSMandado=false;
 
@@ -51,6 +55,10 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
         locationRequest.setInterval(10000); //en milisegundos.
         locationRequest.setFastestInterval(5000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
+        //iniciar el servicio de localización
+        hiloAparte=new HandlerThread("hilo_sensor_zona_segura");
+        hiloAparte.start();
     }
 
 
@@ -65,24 +73,7 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
      */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
-        hiloAparte=new HandlerThread("hilosensor");
-        hiloAparte.start();
-
-
-        //iniciar el servicio de localización
-        //manda eventos, así que empezar nuevo hilo y ordenar el procesamiento de eventos en hilo nuevo.
-
         Log.i("SERVICIO","onStartCommand");
-
-        if(cliente.isConnected()) Log.i("SERVICIO","cliente conectado");
-
-        if(cliente.isConnected() && localizadorActivo){
-            startLocationUpdates();
-        }else{
-            Log.i("SERVICIO","SERVICIO nanai");
-        }
-
         return START_STICKY; //se arranca solo?
     }
 
@@ -91,6 +82,8 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
         Log.i("SERVICIO","onDestroy");
         //parar servicio de localización.
         stopLocationUpdates();
+        //hiloAparte.quitSafely(); API 18
+        hiloAparte.quit();
     }
 
     /**** Métodos para enlazar la actividad con el servicio ****************/
@@ -162,14 +155,15 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
 
         }
 
-
-
         /*if (mLastLocation != null) {
             mLatitudeText.setText(String.valueOf(mLastLocation.getLatitude()));
             mLongitudeText.setText(String.valueOf(mLastLocation.getLongitude()));
         }*/
 
-        if(localizadorActivo){
+        cliente_conectado=true;
+
+        if(localizador_activado){
+            Log.i("SERVICIO","SERVICIO start updates... ");
             startLocationUpdates();
         }
 
@@ -179,11 +173,14 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
     @Override
     public void onConnectionSuspended(int i) {
         Log.i("SERVICIO","SERVICIO onConntectionSuspended "+i);
+        cliente_conectado=false;
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
         Log.i("SERVICIO","SERVICIO onConnectionFailed "+connectionResult.toString());
+        cliente_conectado=false;
+
     }
 
     /********* Métodos mios ***************/
@@ -197,14 +194,16 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
     }
 
     public void startLocationUpdates(){
-        Log.i("SERVICIO","SERVICIO startLocationUpdates");
-        LocationServices.FusedLocationApi.requestLocationUpdates(cliente, locationRequest, this, hiloAparte.getLooper());
-        Log.i("SERVICIO","SERVICIO arrancado updates");
+        if(cliente_conectado) {
+            //manda eventos, así que ordenar el procesamiento de eventos en hilo nuevo.
+            Log.i("SERVICIO", "SERVICIO startLocationUpdates");
+            LocationServices.FusedLocationApi.requestLocationUpdates(cliente, locationRequest, this, hiloAparte.getLooper());
+            Log.i("SERVICIO", "SERVICIO arrancado updates");
+        }
     }
 
     public void stopLocationUpdates(){
         LocationServices.FusedLocationApi.removeLocationUpdates(cliente,this);
-
     }
 
     /**
@@ -217,6 +216,10 @@ public class ServicioLocalizador extends Service implements  ConnectionCallbacks
     private float calcularDistancia(Location lugar){
         float[] distancia=new float[1];
         Location.distanceBetween(latitud,longitud,lugar.getLatitude(),lugar.getLongitude(),distancia);
+        if(distancia.length>2){
+            Log.i("SERVICIO","SERVICIO bearing 1 "+distancia[1]+"  2 "+distancia[2]);
+
+        }
         return distancia[0];
     }
 
